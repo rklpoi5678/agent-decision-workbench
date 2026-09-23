@@ -14,12 +14,13 @@ Complete 3-5 tasks of similar size using:
 
 ```text
 Claude Supervisor
-  -> Codex Developer
-  -> Claude Reviewer
+  -> Claude Developer
+  -> deterministic verification
+  -> Codex Reviewer only when warranted
   -> revision only when justified
 ```
 
-Use Jev only at genuine branch points.
+Use Jev only when the next workflow route is consequential and genuinely ambiguous.
 
 ## Record
 
@@ -32,6 +33,8 @@ For every task:
 | followup_prompts | Extra prompts after the initial task |
 | agent_handoffs | Cross-agent delegations |
 | revision_loops | Developer-reviewer correction loops |
+| jev_calls | Number of ambiguous routing decisions delegated to Jev |
+| codex_reviews | Number of independent Codex review passes |
 | checks_passed | Relevant verification completed |
 | false_done_claims | Agent claimed completion before evidence supported it |
 | notes | Failures, friction, useful behaviors |

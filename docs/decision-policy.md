@@ -50,12 +50,6 @@ need_independent_review: Noul
 
 need_more_verification: Noul
 
-next_action: Choice
-- accept
-- revise
-- run_more_tests
-- human_review
-
 A single shared-state evaluation is preferable to several redundant calls.
 
 ### 3. Human authority layer
