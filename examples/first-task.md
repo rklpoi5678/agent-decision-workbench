@@ -12,10 +12,11 @@ Workflow:
 1. Build a compact understanding of the relevant code.
 2. If the next action is deterministic, do not call Jev.
 3. If a consequential branch is genuinely ambiguous, use Composio + Jev.
-4. Delegate implementation to codex_developer.
-5. Ask claude_reviewer for an independent review.
-6. If the reviewer finds a concrete defect, send one bounded revision to codex_developer.
-7. Finish with changed files, checks run, review verdict, and remaining risks.
+4. Delegate implementation to claude_developer.
+5. Decide whether independent review is warranted; use Jev when that decision is genuinely ambiguous.
+6. When review is warranted, ask codex_reviewer for an independent review.
+7. If the reviewer finds a concrete defect, send one bounded revision to claude_developer.
+8. Finish with changed files, checks run, review verdict, and remaining risks.
 
 Do not perform destructive actions without my approval.
 ```

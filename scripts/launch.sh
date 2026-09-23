@@ -6,15 +6,10 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-decision-workbench"
 mkdir -p "$STATE_DIR"
 
 server_up() {
-  python3 - <<'PY'
-import socket
-s = socket.socket()
-s.settimeout(0.2)
-try:
-    raise SystemExit(0 if s.connect_ex(("127.0.0.1", 9889)) == 0 else 1)
-finally:
-    s.close()
-PY
+  curl -fsS \
+    --max-time 2 \
+    http://127.0.0.1:9889/health \
+    >/dev/null 2>&1
 }
 
 if ! command -v cao >/dev/null 2>&1; then
@@ -42,9 +37,24 @@ if ! server_up; then
 fi
 
 echo "Launching Claude supervisor session: $SESSION"
+echo "Working directory: $PWD"
 echo "CAO server log: $STATE_DIR/cao-server.log"
 
-exec cao launch \
-  --agents jev_supervisor \
-  --session-name "$SESSION" \
+CAO_ARGS=(
+  launch
+  --agents jev_supervisor
+  --session-name "$SESSION"
   --provider claude_code
+  --working-directory "$PWD"
+  --auto-approve
+)
+
+if [[ -n "${ANTHROPIC_BASE_URL:-}" ]]; then
+  CAO_ARGS+=(--env "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL")
+fi
+
+if [[ -n "${ANTHROPIC_TARGET_API_URL:-}" ]]; then
+  CAO_ARGS+=(--env "ANTHROPIC_TARGET_API_URL=$ANTHROPIC_TARGET_API_URL")
+fi
+
+exec cao "${CAO_ARGS[@]}"

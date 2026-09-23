@@ -17,27 +17,55 @@ check() {
   fi
 }
 
-check "tmux" tmux -V
-check "uv" uv --version
-check "Codex CLI" codex --version
+check_env() {
+  local name="$1"
+  local var="$2"
+  if [ -n "${!var-}" ]; then
+    printf '[OK]   %s\n' "$name"
+    ok=$((ok+1))
+  else
+    printf '[FAIL] %s\n' "$name"
+    bad=$((bad+1))
+  fi
+}
+
+# ── CLI availability ──────────────────────────────────────────────
+check "tmux"        tmux -V
+check "curl"        curl --version
+check "Codex CLI"   codex --version
 check "Claude Code" claude --version
 check "Composio CLI" composio --help
-check "CAO" cao --help
-check "profile: jev_supervisor" cao profile show jev_supervisor
-check "profile: codex_developer" cao profile show codex_developer
-check "profile: claude_reviewer" cao profile show claude_reviewer
+check "CAO"         cao --help
 
-printf '\nJev connectivity check (informational):\n'
-if composio search "Jev Evaluate State" >/tmp/adw-jev.out 2>/tmp/adw-jev.err; then
-  printf '[OK]   Composio can search for the Jev Evaluate State tool\n'
-  sed -n '1,12p' /tmp/adw-jev.out | sed 's/^/       /'
+# ── Claude native developer agent ─────────────────────────────────
+if [ -f "$HOME/.claude/agents/workbench-developer.md" ]; then
+  if grep -q 'name: workbench-developer' "$HOME/.claude/agents/workbench-developer.md" 2>/dev/null; then
+    printf '[OK]   Claude native dev agent (workbench-developer)\n'
+    ok=$((ok+1))
+  else
+    printf '[FAIL] Claude native dev agent (workbench-developer) — missing name field\n'
+    bad=$((bad+1))
+  fi
 else
-  printf '[WARN] Jev search failed. If not linked, run: composio link jev\n'
-  sed -n '1,5p' /tmp/adw-jev.err | sed 's/^/       /'
+  printf '[FAIL] Claude native dev agent (workbench-developer) — file not found\n'
+  bad=$((bad+1))
 fi
 
+# ── CAO profiles ──────────────────────────────────────────────────
+check "profile: jev_supervisor"   cao profile show jev_supervisor
+check "profile: claude_developer" cao profile show claude_developer
+check "profile: codex_reviewer"   cao profile show codex_reviewer
+
+# ── Environment variables (value never printed) ───────────────────
+check_env "ANTHROPIC_BASE_URL"       ANTHROPIC_BASE_URL
+check_env "ANTHROPIC_TARGET_API_URL" ANTHROPIC_TARGET_API_URL
+
+# ── Summary ───────────────────────────────────────────────────────
 printf '\nSummary: %s checks passed, %s failed.\n' "$ok" "$bad"
 
 if [ "$bad" -gt 0 ]; then
+  echo 'One or more prerequisites missing. Fix above failures and re-run.'
   exit 1
 fi
+
+echo 'All prerequisites met.'

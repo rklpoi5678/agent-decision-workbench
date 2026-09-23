@@ -34,20 +34,19 @@ warnings
 known constraints
 ```
 
-Possible questions:
-
-```text
 execution_strategy: Choice
-- codex
-- claude
-- both
-- human
+- direct_implementation
+- implementation_then_review
+- inspect_more
+- human_review
 
 risk: Score
 0 = trivial/local
 1 = low
 2 = meaningful cross-system risk
 3 = high/irreversible risk
+
+need_independent_review: Noul
 
 need_more_verification: Noul
 
@@ -56,7 +55,6 @@ next_action: Choice
 - revise
 - run_more_tests
 - human_review
-```
 
 A single shared-state evaluation is preferable to several redundant calls.
 

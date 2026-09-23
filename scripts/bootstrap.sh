@@ -13,6 +13,7 @@ need_cmd() {
 say "Checking base dependencies"
 need_cmd tmux
 need_cmd uv
+need_cmd curl
 need_cmd codex
 need_cmd claude
 need_cmd composio
@@ -29,13 +30,13 @@ composio setup --target auto --yes
 
 say "Validating CAO profiles"
 cao profile validate "$ROOT/profiles/jev-supervisor.md"
-cao profile validate "$ROOT/profiles/codex-developer.md"
-cao profile validate "$ROOT/profiles/claude-reviewer.md"
+cao profile validate "$ROOT/profiles/claude-developer.md"
+cao profile validate "$ROOT/profiles/codex-reviewer.md"
 
 say "Installing CAO profiles"
 cao install "$ROOT/profiles/jev-supervisor.md"
-cao install "$ROOT/profiles/codex-developer.md"
-cao install "$ROOT/profiles/claude-reviewer.md"
+cao install "$ROOT/profiles/claude-developer.md"
+cao install "$ROOT/profiles/codex-reviewer.md"
 
 cat <<'EOF'
 
