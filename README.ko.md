@@ -5,8 +5,8 @@
 핵심은 새로운 오케스트레이터를 또 만드는 것이 아닙니다.
 
 - Claude Code: Supervisor
-- Codex: Developer
-- Claude Code: 독립 Reviewer
+- Claude Code: Developer
+- Codex: 독립 Reviewer / Quality Gate
 - CAO: 세션/에이전트 오케스트레이션
 - Composio: 외부 툴 연결/인증
 - Jev: 애매한 분기에서 구조화된 판단

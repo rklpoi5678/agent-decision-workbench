@@ -5,8 +5,8 @@ An opinionated local-first starter for coordinating **Claude Code**, **Codex CLI
 The project does **not** try to replace CAO or build yet another coding-agent router. Instead, it supplies a reusable control pattern:
 
 - Claude Code acts as the supervisor.
-- Codex acts as the default implementation worker.
-- Claude Code acts as an independent read-only reviewer.
+- Claude Code acts as the default implementation worker.
+- Codex acts as the independent quality reviewer.
 - Jev is used only when a decision is genuinely ambiguous and can change the next action.
 - Composio provides the tool/authentication layer used to reach Jev.
 - CAO owns process/session orchestration and cross-provider delegation.
@@ -49,8 +49,8 @@ This repository turns that workflow into a repeatable supervisor/developer/revie
              +------------+-------------+
              |                          |
              v                          v
-      Codex Developer            Claude Reviewer
-        (write/test)                (read-only)
+      Claude Developer            Codex Reviewer
+        (write/test)                (quality gate)
              |                          |
              +------------+-------------+
                           |
@@ -139,12 +139,9 @@ Then give the supervisor a real repository task, for example:
 Inspect this repository and implement the requested feature.
 
 Use the configured workflow:
-- use deterministic evidence directly when possible,
-- use Jev only for consequential ambiguous decisions,
-- delegate implementation to codex_developer,
-- delegate independent review to claude_reviewer,
+- delegate implementation to claude_developer,
+- request codex_reviewer only when independent review is warranted,
 - revise if the review finds a concrete problem,
-- finish with changed files, tests, remaining risks, and decisions.
 ```
 
 ## Profiles
@@ -153,13 +150,13 @@ Use the configured workflow:
 
 Claude Code supervisor. It coordinates workers and may call Jev through Composio when a structured decision would materially affect execution.
 
-### `codex_developer`
+### `claude_developer`
 
-Codex implementation worker. It owns code changes and verification.
+Claude Code implementation worker. It owns code changes and deterministic verification.
 
-### `claude_reviewer`
+### `codex_reviewer`
 
-Read-only Claude Code reviewer. It independently checks requirements, changed code, and verification evidence.
+Independent Codex quality reviewer. It checks requirements, changed code, verification evidence, and regressions.
 
 ## Jev usage rule
 
