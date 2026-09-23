@@ -56,9 +56,13 @@ check "profile: jev_supervisor"   cao profile show jev_supervisor
 check "profile: claude_developer" cao profile show claude_developer
 check "profile: codex_reviewer"   cao profile show codex_reviewer
 
-# ── Environment variables (value never printed) ───────────────────
-check_env "ANTHROPIC_BASE_URL"       ANTHROPIC_BASE_URL
-check_env "ANTHROPIC_TARGET_API_URL" ANTHROPIC_TARGET_API_URL
+# ── Optional custom Anthropic provider environment ─────────────────
+if [[ -n "${ANTHROPIC_BASE_URL:-}" || -n "${ANTHROPIC_TARGET_API_URL:-}" ]]; then
+  check_env "ANTHROPIC_BASE_URL"       ANTHROPIC_BASE_URL
+  check_env "ANTHROPIC_TARGET_API_URL" ANTHROPIC_TARGET_API_URL
+else
+  printf '[INFO] Standard Claude provider mode; custom Anthropic endpoints not configured.\n'
+fi
 
 # ── Summary ───────────────────────────────────────────────────────
 printf '\nSummary: %s checks passed, %s failed.\n' "$ok" "$bad"

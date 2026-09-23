@@ -38,6 +38,11 @@ cao install "$ROOT/profiles/jev-supervisor.md"
 cao install "$ROOT/profiles/claude-developer.md"
 cao install "$ROOT/profiles/codex-reviewer.md"
 
+say "Installing Claude native developer agent"
+mkdir -p "$HOME/.claude/agents"
+cp "$ROOT/native-agents/workbench-developer.md" \
+  "$HOME/.claude/agents/workbench-developer.md"
+
 cat <<'EOF'
 
 Bootstrap complete.

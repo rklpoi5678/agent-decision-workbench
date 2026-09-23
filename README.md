@@ -91,18 +91,19 @@ You should already have:
 
 - `git`
 - `tmux`
+- `curl`
 - Python 3.10+
 - `uv`
 - Claude Code (`claude`) authenticated
 - Codex CLI (`codex`) authenticated
 - Composio CLI (`composio`) authenticated
 
-The bootstrap script installs CAO from PyPI when `cao` is missing.
+The bootstrap script installs CAO from PyPI when `cao` is missing and installs the bundled `workbench-developer` native Claude agent into `~/.claude/agents/`.
 
 ## Quick start
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://github.com/rklpoi5678/agent-decision-workbench.git
 cd agent-decision-workbench
 
 chmod +x scripts/*.sh
@@ -185,8 +186,8 @@ This project is glue, policy, and reproducible setup—not a reinvention of the 
 - AWS Labs CLI Agent Orchestrator (CAO): process/session orchestration
 - Composio: external tool/authentication layer
 - Jev / TypeSafe: typed probabilistic decisions
-- Codex CLI: implementation worker
-- Claude Code: supervisor/reviewer
+- Claude Code: supervisor and native implementation worker
+- Codex CLI: independent reviewer / quality gate
 
 There are also existing agent-router and multi-agent projects. This repository should only grow where the integration or opinionated workflow adds a concrete missing capability.
 
