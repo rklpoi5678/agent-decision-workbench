@@ -1,219 +1,606 @@
 # Agent Decision Workbench
 
-An opinionated local-first starter for coordinating **Claude Code**, **Codex CLI**, **AWS CLI Agent Orchestrator (CAO)**, **Composio**, and **Jev**.
+> **Decision-gated orchestration for coding agents.**
+>
+> Claude implements. Codex reviews when it matters. Jev decides when the route is ambiguous.
 
-The project does **not** try to replace CAO or build yet another coding-agent router. Instead, it supplies a reusable control pattern:
+Agent Decision Workbench is a small, local-first workflow layer for
+**Claude Code**, **Codex CLI**, **CAO**, **Composio**, and **Jev**.
 
-- Claude Code acts as the supervisor.
-- Claude Code acts as the default implementation worker.
-- Codex acts as the independent quality reviewer.
-- Jev is used only when a decision is genuinely ambiguous and can change the next action.
-- Composio provides the tool/authentication layer used to reach Jev.
-- CAO owns process/session orchestration and cross-provider delegation.
+It is not another agent runtime.
+
+Instead, it answers a narrower question:
+
+> **When is another agent actually worth calling?**
+
+Most multi-agent workflows can easily turn every task into:
+
+```text
+implement
+→ review
+→ review again
+→ debate
+→ handoff
+→ more tokens
+````
+
+Agent Decision Workbench takes the opposite approach:
+
+```text
+use deterministic evidence first
+→ call another agent only when it changes the outcome
+```
+
+---
 
 ## Why this exists
 
-Using Codex and Claude Code together is already useful, but humans often become the hidden orchestrator:
+Using Claude Code and Codex together is useful.
 
-1. decide which agent should work,
-2. copy context between terminals,
-3. ask another model to review,
-4. send fixes back,
-5. decide when enough verification has happened.
-
-This repository turns that workflow into a repeatable supervisor/developer/reviewer setup without reimplementing the underlying CLIs.
-
-## Architecture
+But without a workflow, the human often becomes the orchestration layer:
 
 ```text
-                        User
-                          |
-                          v
-                 Claude Supervisor
-                   (CAO conductor)
-                          |
-             +------------+-------------+
-             |                          |
-      ambiguous decision?          deterministic?
-             |                          |
-             v                          |
-          Composio                      |
-             |                          |
-             v                          |
-            Jev                         |
-             |                          |
-             +------------+-------------+
-                          |
-                 routing / next action
-                          |
-             +------------+-------------+
-             |                          |
-             v                          v
-      Claude Developer            Codex Reviewer
-        (write/test)                (quality gate)
-             |                          |
-             +------------+-------------+
-                          |
-                    Supervisor
-                          |
-              accept / revise / human
+"Claude, implement this."
+        ↓
+copy result
+        ↓
+"Codex, review this."
+        ↓
+copy findings
+        ↓
+"Claude, fix these."
+        ↓
+decide whether another review is necessary
 ```
 
-## Current scope: v0.1
+That coordination is repetitive.
 
-This first version is intentionally small.
+This project moves that control into a small, explicit policy layer.
 
-It provides:
+---
 
-- reusable CAO profiles,
-- an idempotent-ish bootstrap script,
-- a launcher for the supervisor session,
-- a doctor script,
-- a Jev decision policy,
-- a simple productivity benchmark plan.
+## How it works
 
-It does **not** yet provide:
+```text
+                         User
+                           │
+                           ▼
+                  Claude Supervisor
+                           │
+                           ▼
+                  Claude Developer
+                           │
+                           ▼
+              Deterministic Verification
+             tests · build · lint · diff
+                           │
+                           ▼
+                   Review Routing
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+          obvious        obvious      ambiguous
+          low-risk       high-risk       │
+             │             │             ▼
+             │             │            Jev
+             │             │       Choice / Score /
+             │             │          Noul
+             │             │             │
+             ▼             ▼             ▼
+          Complete      Codex Review   route decision
+                            │
+                     ┌──────┴──────┐
+                     │             │
+                    PASS         REVISE
+                     │             │
+                     ▼             ▼
+                  Complete    Claude revision
+                                    │
+                                    └──→ Codex Review
+```
 
-- a custom orchestration runtime,
-- a dashboard,
-- automatic token/quota accounting,
-- a custom Jev SDK,
-- automatic GitHub PR creation,
-- autonomous destructive actions.
+The important part is what **does not happen**:
 
-Those are possible later only if real use shows they are needed.
+* trivial changes do not automatically trigger another model,
+* deterministic facts are not delegated to an LLM,
+* Jev is not called for every branch,
+* a reviewer cannot silently override explicit contract violations,
+* revision loops are bounded.
 
-## Prerequisites
+---
 
-Linux/macOS is the current target.
+## The decision gate
 
-You should already have:
+After implementation and deterministic verification, the supervisor chooses
+one of three paths.
 
-- `git`
-- `tmux`
-- `curl`
-- Python 3.10+
-- `uv`
-- Claude Code (`claude`) authenticated
-- Codex CLI (`codex`) authenticated
-- Composio CLI (`composio`) authenticated
+### A — Review clearly unnecessary
 
-The bootstrap script installs CAO from PyPI when `cao` is missing and installs the bundled `workbench-developer` native Claude agent into `~/.claude/agents/`.
+Examples:
+
+```text
+README typo
+comment-only change
+local metadata edit
+mechanical formatting
+```
+
+Result:
+
+```text
+Claude Developer
+→ deterministic verification
+→ complete
+```
+
+No Jev.
+No Codex review.
+
+### B — Review clearly required
+
+Examples:
+
+```text
+authentication
+authorization
+payments
+data migrations
+public API changes
+cross-component runtime behavior
+high-risk infrastructure changes
+```
+
+Result:
+
+```text
+Claude Developer
+→ deterministic verification
+→ Codex Reviewer
+```
+
+No Jev is needed because the route is already obvious.
+
+### C — Review necessity is ambiguous
+
+This is where Jev is used.
+
+A single compact state can evaluate:
+
+```text
+execution_strategy: Choice
+
+- direct_implementation
+- implementation_then_review
+- inspect_more
+- human_review
+```
+
+```text
+risk: Score
+
+0 = trivial / local
+1 = low
+2 = meaningful behavioral or cross-system risk
+3 = high / irreversible / permission-sensitive
+```
+
+```text
+need_independent_review: Noul
+need_more_verification: Noul
+```
+
+The supervisor uses these signals together rather than inventing a hard
+probability threshold.
+
+---
+
+## Evidence first
+
+This project follows one rule above everything else:
+
+> **Deterministic evidence outranks model confidence.**
+
+A model cannot turn:
+
+```text
+failing test
+```
+
+into:
+
+```text
+looks good to me
+```
+
+The same applies to:
+
+```text
+compiler failures
+repository state
+git diff
+lint results
+type errors
+explicit acceptance criteria
+```
+
+Jev is used for **semantic branch decisions**, not facts that software can
+already determine.
+
+See [Decision Policy](docs/decision-policy.md).
+
+---
+
+## Reviewer invariants
+
+Codex acts as an independent quality gate.
+
+Reviewer output is structured:
+
+```yaml
+verdict: PASS | REVISE | HUMAN_REVIEW
+
+required_contract_violations: []
+
+findings: []
+
+verification_evidence: []
+
+remaining_risks: []
+
+recommended_next_action: accept | revise | human_review
+```
+
+The supervisor then applies its own invariants.
+
+For example:
+
+```text
+Reviewer says: PASS
+
+but
+
+required_contract_violations:
+  - expected: risk_scale.max = 3
+    actual: risk_scale.max = 2
+```
+
+The effective result is still:
+
+```text
+REVISE
+```
+
+The reviewer's label is not treated as unquestionable truth.
+
+---
+
+## Bounded revision loops
+
+A failed review does not create an endless agent conversation.
+
+The default correction flow is:
+
+```text
+Codex Reviewer
+      │
+    REVISE
+      │
+      ▼
+Claude Developer
+      │
+ smallest corrective change
+      │
+      ▼
+Codex Reviewer
+```
+
+At most **2 revision rounds** are allowed for the same implementation contract.
+
+If the issue is still unresolved:
+
+```text
+HUMAN_REVIEW
+```
+
+---
 
 ## Quick start
 
+### Requirements
+
+| Tool        | Purpose                            |
+| ----------- | ---------------------------------- |
+| Claude Code | Supervisor + implementation worker |
+| Codex CLI   | Independent reviewer               |
+| CAO         | Agent/session orchestration        |
+| Composio    | Tool and authentication layer      |
+| Jev         | Typed decision engine              |
+| tmux        | CAO terminal sessions              |
+| uv          | CAO installation                   |
+| curl        | Health checks                      |
+
+Also required:
+
+```text
+Python 3.10+
+Linux or macOS
+```
+
+### Install
+
 ```bash
-git clone https://github.com/rklpoi5678/agent-decision-workbench.git
+git clone <repository-url>
 cd agent-decision-workbench
 
 chmod +x scripts/*.sh
 ./scripts/bootstrap.sh
 ```
 
-If Jev has not been connected to Composio yet:
+If Jev has not been connected yet:
 
 ```bash
 composio link jev
 ```
 
-Check the environment:
+Verify the installation:
 
 ```bash
 ./scripts/doctor.sh
 ```
 
-Launch the supervisor:
+Example successful result:
 
-```bash
-./scripts/launch.sh
+```text
+[OK]   tmux
+[OK]   curl
+[OK]   Codex CLI
+[OK]   Claude Code
+[OK]   Composio CLI
+[OK]   CAO
+[OK]   Claude native dev agent (workbench-developer)
+[OK]   profile: jev_supervisor
+[OK]   profile: claude_developer
+[OK]   profile: codex_reviewer
+
+All prerequisites met.
 ```
 
-Or name the session:
+---
+
+## Launch
+
+From the repository you want the agents to work on:
 
 ```bash
-./scripts/launch.sh my-project
+/path/to/agent-decision-workbench/scripts/launch.sh
 ```
 
-Then give the supervisor a real repository task, for example:
+Or choose a session name:
+
+```bash
+/path/to/agent-decision-workbench/scripts/launch.sh my-project
+```
+
+The current working directory becomes the agent workspace.
+
+Stop the session with:
+
+```bash
+/path/to/agent-decision-workbench/scripts/stop.sh my-project
+```
+
+---
+
+## First task
+
+A minimal task can simply be:
 
 ```text
 Inspect this repository and implement the requested feature.
 
-Use the configured workflow:
-- delegate implementation to claude_developer,
-- request codex_reviewer only when independent review is warranted,
-- revise if the review finds a concrete problem,
+Use the configured workflow.
+Use deterministic evidence first.
+Use Jev only when a consequential workflow decision is genuinely ambiguous.
+Use independent Codex review only when warranted.
 ```
+
+The supervisor handles the rest.
+
+A longer starter prompt is available in:
+
+```text
+examples/first-task.md
+```
+
+---
 
 ## Profiles
 
 ### `jev_supervisor`
 
-Claude Code supervisor. It coordinates workers and may call Jev through Composio when a structured decision would materially affect execution.
+Claude Code supervisor.
+
+Responsible for:
+
+```text
+task decomposition
+delegation
+review routing
+Jev decisions
+revision control
+final evidence
+```
 
 ### `claude_developer`
 
-Claude Code implementation worker. It owns code changes and deterministic verification.
+Thin CAO wrapper around the native Claude Code agent:
+
+```text
+workbench-developer
+```
+
+Responsible for:
+
+```text
+implementation
+tests
+builds
+linting
+type checks
+change reporting
+```
 
 ### `codex_reviewer`
 
-Independent Codex quality reviewer. It checks requirements, changed code, verification evidence, and regressions.
+Independent Codex quality gate.
 
-## Jev usage rule
+Responsible for checking:
 
-Jev is not a substitute for tests, compiler output, repository facts, or user approval.
+```text
+requirements
+correctness
+regressions
+edge cases
+verification claims
+scope expansion
+repository conventions
+```
 
-Use Jev when:
+---
 
-- several reasonable routes exist,
-- the route materially changes cost/risk/work,
-- the state can be summarized compactly,
-- a typed decision is more useful than another long-form answer.
+## What this project is not
 
-Do not use Jev for:
+Agent Decision Workbench is intentionally **not**:
 
-- obvious next steps,
-- facts that can be checked directly,
-- routine shell/file operations,
-- destructive actions requiring human approval.
+```text
+a new agent runtime
+a replacement for CAO
+a model router
+a swarm framework
+a coding-agent UI
+an autonomous software factory
+```
 
-See [`docs/decision-policy.md`](docs/decision-policy.md).
+CAO already handles agent processes and sessions.
 
-## Existing projects we intentionally build on
+Claude and Codex already know how to work with code.
 
-This project is glue, policy, and reproducible setup—not a reinvention of the ecosystem.
+Composio already handles external tool integration.
 
-- AWS Labs CLI Agent Orchestrator (CAO): process/session orchestration
-- Composio: external tool/authentication layer
-- Jev / TypeSafe: typed probabilistic decisions
-- Claude Code: supervisor and native implementation worker
-- Codex CLI: independent reviewer / quality gate
+Jev already provides typed probabilistic decisions.
 
-There are also existing agent-router and multi-agent projects. This repository should only grow where the integration or opinionated workflow adds a concrete missing capability.
+This repository adds the **workflow policy between them**.
+
+---
+
+## Built on existing tools
+
+| Project     | Role here                                  |
+| ----------- | ------------------------------------------ |
+| CAO         | Agent and terminal orchestration           |
+| Claude Code | Supervisor + implementation                |
+| Codex CLI   | Independent review                         |
+| Composio    | External tools and authentication          |
+| Jev         | Typed decisions at ambiguous branch points |
+
+The goal is integration, not reinvention.
+
+---
+
+## Benchmark the workflow
+
+More agents do not automatically mean better engineering.
+
+This repository includes a simple benchmark plan comparing:
+
+```text
+manual Claude / Codex coordination
+```
+
+against:
+
+```text
+decision-gated orchestration
+```
+
+Track:
+
+```text
+wall-clock time
+human interventions
+follow-up prompts
+agent handoffs
+Jev calls
+Codex reviews
+revision loops
+false "done" claims
+verification results
+```
+
+The primary question is:
+
+> **Does the workflow reduce human coordination without increasing defects or unreasonable cost?**
+
+See [Productivity Benchmark](docs/productivity-benchmark.md).
+
+---
+
+## Project status
+
+**v0.1 — working experimental release**
+
+include:
+
+```text
+Claude native developer handoff
+Codex independent review
+PASS / REVISE control flow
+bounded revision loop
+reviewer consistency invariants
+conditional Jev routing
+direct completion without unnecessary review
+```
+
+The project is intentionally small while real-world usage data is collected.
+
+---
 
 ## Security
 
-- Never commit API keys, `.env`, provider credentials, auth caches, or private task logs.
-- Task state sent to Jev may leave your machine through the configured provider. Do not send secrets.
-- Jev results are advisory decisions, not permission grants.
-- Destructive or irreversible operations require explicit human approval.
-- Review generated shell commands before running this project in sensitive environments.
+Never send credentials or secrets to Jev or another model as routing context.
 
-## Productivity experiment
+The workflow does not treat model output as authorization.
 
-Do not assume orchestration improves productivity.
+Destructive or irreversible actions still require explicit human approval.
 
-Compare the old workflow and this workflow using real tasks. Track:
+Do not commit:
 
-- total wall-clock time,
-- number of human interventions,
-- number of follow-up prompts,
-- rework loops,
-- tests/checks passed,
-- model/agent usage where available.
+```text
+.env
+API keys
+provider credentials
+private task logs
+authentication caches
+```
 
-See [`docs/productivity-benchmark.md`](docs/productivity-benchmark.md).
+---
+
+## Roadmap
+
+The immediate roadmap is deliberately boring:
+
+```text
+use it on real projects
+measure whether it helps
+remove steps that do not help
+improve routing policy from evidence
+```
+
+Features such as dashboards, custom runtimes, automatic quota accounting,
+or additional agents should only be added when actual usage justifies them.
+
+---
 
 ## License
 
-MIT.
+MIT
