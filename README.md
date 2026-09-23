@@ -329,7 +329,7 @@ Linux or macOS
 ### Install
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/rklpoi5678/agent-decision-workbench.git
 cd agent-decision-workbench
 
 chmod +x scripts/*.sh
